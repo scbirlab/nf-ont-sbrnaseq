@@ -30,10 +30,11 @@ if ( params.help ) {
 
          Required parameters:
             sample_sheet         Path to a CSV containing sample IDs matched with ONT barcode IDs, genome information, and adapter sequences.
-            data_dir             Path to root directory to fin POD5 files (usign pattern <data_dir>/pod5_*/*/*.pod5).
+            data_dir             Path to root directory to find POD5 files (using pattern <data_dir>/pod5_*/*/*.pod5).
             genome_fasta_dir     Path to directory containing genome FASTA files (for mapping)
             genome_gff_dir       Path to directory containing genome GFF files (for feature counting)
-            guppy_path           Path to Guppy (`ont-guppy` directory) provided by Oxford Nanopore.
+            guppy_path           Path to Guppy (`ont-guppy` directory) provided by Oxford Nanopore
+            barcode_kit          SKU of the barcoding kit used, e.g. SQK-NBD114-24 for the 24-barcode ligation kit 
 
          Optional parameters (with defaults):   
             model = "dna_r10.4.1_e8.2_400bps"   For `guppy`, the basecalling model to use.
@@ -47,7 +48,7 @@ if ( params.help ) {
          The parameters can be provided either in the `nextflow.config` file or on the `nextflow run` command.
    
    """.stripIndent()
-   System.exit(0)
+   exit 0
 }
 
 /*
@@ -55,20 +56,23 @@ if ( params.help ) {
    Check parameters
 ========================================================================================
 */
-if (!params.sample_sheet) {
+if ( !params.sample_sheet ) {
    throw new Exception("!!! PARAMETER MISSING: Please provide a path to sample_sheet")
 }
-if (!params.data_dir) {
+if ( !params.data_dir ) {
    throw new Exception("!!! PARAMETER MISSING: Please provide a path to fastq_dir")
 }
-if (!params.genome_fasta_dir) {
+if ( !params.genome_fasta_dir ) {
    throw new Exception("!!! PARAMETER MISSING: Please provide a path to genome_fasta_dir")
 }
-if (!params.genome_gff_dir) {
+if ( !params.genome_gff_dir ) {
    throw new Exception("!!! PARAMETER MISSING: Please provide a path to genome_gff_dir")
 }
-if (!params.guppy_path) {
+if ( !params.guppy_path ) {
    throw new Exception("!!! PARAMETER MISSING: Please provide a path to guppy_path")
+}
+if ( !params.barcode_kit ) {
+   throw new Exception("!!! PARAMETER MISSING: Please provide a barcode_kit")
 }
 
 wd = file(params.sample_sheet)
@@ -269,7 +273,7 @@ process DEMUX {
    """
    ${guppy_barcoder} --input_path . --save_path . \
       --config configuration.cfg \
-      --barcode_kits ${params.kit} \
+      --barcode_kits ${params.barcode_kit} \
       --compress_fastq \
       --records_per_fastq 0 \
       --verbose_logs
