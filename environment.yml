@@ -1,0 +1,23 @@
+name: nf-ont-sbrnaseq
+
+channels:
+    - nanoporetech
+    - conda-forge
+    - bioconda
+
+dependencies:
+    - python
+    - pip
+    - openjdk
+    - cutadapt
+    - bowtie2
+    - minimap2
+    - subread
+    - fastqc
+    - multiqc
+    - samtools
+    - umi_tools
+    - pip:
+        - pod5
+        - duplex_tools
+        - ont-guppy-duplex-pipeline
