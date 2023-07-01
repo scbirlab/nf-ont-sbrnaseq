@@ -31,7 +31,7 @@ Then for each demultiplexed sample:
 
 You need to have Nextflow and either `conda` or `mamba` installed on your system. If possible, use `mamba` because it will be faster.
 
-You will also need the `guppy` basecaller from Oxford Nanopore. It can be downloaded from their [community site](https://community.nanoporetech.com/downloads). Whn you've installed it, `guppy_path` is a required parameter of the pipeline.
+You will also need the `guppy` basecaller from Oxford Nanopore. It can be downloaded from their [community site](https://community.nanoporetech.com/downloads). When you've installed it, `guppy_path` is a required parameter of the pipeline.
 
 ### Reference genome and genome annotations
 
