@@ -104,14 +104,14 @@ log.info """\
             FASTQ          : ${fastq_o}
             Processed      : ${processed_o}
             Counts         : ${counts_o}
+            MultiQC        : ${multiqc_o}
          """
          .stripIndent()
 
 dirs_to_make = [fastq_o, processed_o, counts_o, multiqc_o]
 
 log.info  """
-            Making directories: 
-         
+         Making directories:
           """.stripIndent()
 
 dirs_to_make.each { 
@@ -133,17 +133,18 @@ csv_ch = Channel.fromPath( params.sample_sheet,
                            checkIfExists: true )
                 .splitCsv( header: true )
 
-sample_ch = csv_ch.map { row -> tuple( row.barcode_id,
-                                       row.genome_id,
-                                       row.sample_id,
-                                       row.adapter,
-                                       row.umi, row.n_cells ) }
+sample_ch = csv_ch.map { tuple( it.barcode_id,
+                                it.genome_id,
+                                it.sample_id,
+                                it.adapter,
+                                it.umi, 
+                                it.n_cells ) }
 
-genome_ch = csv_ch.map { row -> tuple( row.genome_id,
-                                       file("${params.genome_fasta_dir}/${row.genome_id}.fasta",
-                                          checkIfExists: true),
-                                       file("${params.genome_gff_dir}/${row.genome_id}.gff3",
-                                          checkIfExists: true)) }
+genome_ch = csv_ch.map { tuple( it.genome_id,
+                                file( "${params.genome_fasta_dir}/${it.genome_id}.fasta",
+                                      checkIfExists: true ),
+                                file( "${params.genome_gff_dir}/${it.genome_id}.gff3",
+                                      checkIfExists: true ) ) }
                   .unique()
 
 /*
@@ -160,7 +161,8 @@ workflow {
    
    DEMUX.out.main.map { ['_', it] }
                  .transpose()
-                 .map { tuple( it[1].getParent().getSimpleName(), it[1] ) }
+                 .map { tuple( it[1].getParent().getSimpleName(), 
+                               it[1] ) }
                  .join( sample_ch )
                  .set { demuxed }
 
@@ -168,15 +170,18 @@ workflow {
    demuxed | TRIM_CUTADAPT
 
    TRIM_CUTADAPT.out.main | UMITOOLS_WHITELIST
-   TRIM_CUTADAPT.out.main.join(UMITOOLS_WHITELIST.out.main, by: 1) | UMITOOLS_EXTRACT_WL
+   TRIM_CUTADAPT.out.main.join( UMITOOLS_WHITELIST.out.main, 
+                                by: 1 ) | UMITOOLS_EXTRACT_WL
 
    genome_ch | MINIMAP2_INDEX 
-   UMITOOLS_EXTRACT_WL.out.main.combine(MINIMAP2_INDEX.out, by: 0) | MINIMAP2_ALIGN
+   UMITOOLS_EXTRACT_WL.out.main.combine( MINIMAP2_INDEX.out, 
+                                         by: 0 ) | MINIMAP2_ALIGN
    MINIMAP2_ALIGN.out.main \
       | UMITOOLS_DEDUP
 
    genome_ch | BOWTIE2_INDEX 
-   UMITOOLS_EXTRACT_WL.out.main.combine(BOWTIE2_INDEX.out, by: 0) | BOWTIE2_ALIGN
+   UMITOOLS_EXTRACT_WL.out.main.combine( BOWTIE2_INDEX.out, 
+                                         by: 0 ) | BOWTIE2_ALIGN
 
    UMITOOLS_DEDUP.out.main \
       | FEATURECOUNTS
@@ -187,7 +192,7 @@ workflow {
    TRIM_CUTADAPT.out.logs.concat(
          FASTQC.out.logs,
          BOWTIE2_ALIGN.out.logs,
-         FEATURECOUNTS.out.logs)
+         FEATURECOUNTS.out.logs )
       .flatten()
       .unique()
       .collect() \
@@ -259,7 +264,8 @@ process DEMUX {
    queue 'gpu'
    clusterOptions '--gres=gpu:4'
 
-   publishDir(fastq_o, mode: 'copy')
+   publishDir( fastq_o, 
+               mode: 'copy' )
 
    input:
    path( reads )
@@ -287,7 +293,7 @@ process FASTQC {
 
    memory '32GB'
 
-   tag{"${sample_id}"}
+   tag "${sample_id}"
 
    input:
    tuple val( barcode_id ), path( reads ), val( genome_id ), val( sample_id ), val( adapters ), val( umis ), val( n_cells )
@@ -312,9 +318,10 @@ process FASTQC {
  */
 process TRIM_CUTADAPT {
 
-   tag{"${barcode_id}-${sample_id}"}
+   tag "${barcode_id}-${sample_id}"
 
-   publishDir(processed_o, mode: 'copy')
+   publishDir( processed_o, 
+               mode: 'copy' )
 
    input:
    tuple val( barcode_id ), path( reads ), val( genome_id ), val( sample_id ), val( adapters ), val( umis ), val( n_cells )
@@ -368,7 +375,8 @@ process UMITOOLS_WHITELIST {
    time '24h'
    memory '32GB'
 
-   publishDir( processed_o, mode: 'copy' )
+   publishDir( processed_o, 
+               mode: 'copy' )
 
    input:
    tuple val( genome_id ), val( sample_id ), val( adapters ), val( umis ), val( n_cells ), path( reads )
@@ -406,11 +414,12 @@ process UMITOOLS_WHITELIST {
  */
 process UMITOOLS_EXTRACT_WL {
 
-   tag{"${sample_id}"}
+   tag "${sample_id}"
 
    time '24h'
 
-   publishDir( processed_o, mode: 'copy' )
+   publishDir( processed_o, 
+               mode: 'copy' )
 
    input:
    tuple val( sample_id ), val( genome_id ), val( adapters ), val( umis ), val( n_cells ), path( reads ), path ( whitelist )
@@ -433,37 +442,10 @@ process UMITOOLS_EXTRACT_WL {
 }
 
 /*
- * Extract cell barcodes and UMIs
- */
-process UMITOOLS_EXTRACT {
-   tag{"${sample_id}"}
-
-   time '24h'
-
-   publishDir(processed_o, mode: 'copy')
-
-   input:
-   tuple val( genome_id ), val( sample_id ), val( adapters ), val( umis ), val( n_cells ), path( reads )
-
-   output:
-   tuple val( genome_id ), val( sample_id ), path( "*.gz" ), emit: main
-   path( "*.log" ), emit: logs
-
-   script:
-   """
-   umi_tools extract \
-		--bc-pattern "${umis}" \
-      --extract-method=regex \
-      --log ${sample_id}.extract.log \
-		--stdin ${reads} \
-		--stdout ${sample_id}.extracted.fastq.gz 
-   """
-}
-
-/*
  * Index the reference genome for use by Bowtie2.
  */
 process BOWTIE2_INDEX {
+
    tag "${genome_id}"
    
    input:
@@ -563,10 +545,14 @@ process MINIMAP2_ALIGN {
  */
 process UMITOOLS_DEDUP {
 
-   tag{"${sample_id}"}
+   tag "${sample_id}" 
 
-   publishDir(processed_o, mode: 'copy', pattern: "*.bam")
-   publishDir(processed_o, mode: 'copy', pattern: "*.log")
+   publishDir( processed_o, 
+               mode: 'copy', 
+               pattern: "*.bam" )
+   publishDir( processed_o, 
+               mode: 'copy', 
+               pattern: "*.log" )
 
    input:
    tuple val( genome_id ), path( gff ), val( sample_id ), path( bamfile ), path( bam_idx )
@@ -598,7 +584,11 @@ process FEATURECOUNTS {
    memory '32GB'
 
    publishDir( counts_o, 
-               mode: 'copy' )
+               mode: 'copy', 
+               pattern: "*.tsv" )
+   publishDir( counts_o, 
+               mode: 'copy', 
+               pattern: "*.summary" )
 
    input:
    tuple val( genome_id ), path( gff ), val( sample_id ), path( bamfile )
@@ -654,7 +644,8 @@ process UMITOOLS_COUNT {
  */
 process MULTIQC {
 
-   publishDir(multiqc_o, mode: 'copy')
+   publishDir( multiqc_o, 
+               mode: 'copy' )
 
    input:
    path '*'
