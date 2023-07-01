@@ -67,7 +67,7 @@ source ~/.bash_profile
 
 ## Quick start
 
-Make a sample sheet (see below) and, optionally, a `nextflow.config` file in the directory where you want the pipeline to run. Then run Nextflow.
+Make a [sample sheet (see below)](#sample-sheet) and, optionally, a [`nextflow.config` file](#inputs) in the directory where you want the pipeline to run. Then run Nextflow.
 
 ```bash 
 nextflow run scbirlab/nf-ont-sbrnaseq
@@ -149,8 +149,8 @@ The file must have a header with the column names below, and one line per sample
 - `barcode_id`: the ONT barcode name from the barcoding kit you used
 - `sample_id`: the unique name of the sample
 - `genome_id`: the name of the genome to map to. Each entry must match the name of one file (apart from the extension) in `genome_fasta_dir` and `genome_gff_dir`
-- `n_cells`: expected number of uniquely barcoded cells in the sample (used by `umi_tools`). This can be more than the number of reads, in which case the number of reads is taken instead.
-- `adapter`: the adapter to trim to in [`cutadapt` format](https://cutadapt.readthedocs.io/en/stable/guide.html#specifying-adapter-sequences)
+- `n_cells`: maximum number of uniquely barcoded cells in the sample (used by `umi_tools`). This can be more than the number of reads, in which case the number of reads is taken instead.
+- `adapter`: the adapter sequence to trim to in [`cutadapt` format](https://cutadapt.readthedocs.io/en/stable/guide.html#specifying-adapter-sequences). Sequences _either side_ will be removed, but the adapters themselves will be retained.
 - `umi`: the cell barcode and UMI pattern in [`umitools` regex format](https://umi-tools.readthedocs.io/en/latest/regex.html#regex-regular-expression-mode)
 
 Here is an example of the sample sheet:
